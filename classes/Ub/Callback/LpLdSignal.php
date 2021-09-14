@@ -1,5 +1,5 @@
 <?php
-//upd:2021/09/14 (на самом деле 13.09.21)
+
 /**
  * @const TIME_START Время запуска скрипта в миллисекундах
  */
@@ -7,14 +7,16 @@
 	    define ('TIME_START', microtime(true)); // время запуска скрипта
 	}
 
-class UbCallbackSendSignal implements UbCallbackAction {
+class UbCallbackLpLdSignal implements UbCallbackAction {
 
 	function closeConnection() {
 		@ob_end_clean();
 		@header("Connection: close");
 		@ignore_user_abort(true);
 		@ob_start();
-		echo 'ok';
+		//echo 'ok';
+		@header('Content-type: application/json; charset=utf-8', true);
+		echo json_encode(['response' => 'ok'], JSON_UNESCAPED_UNICODE);
 		$size = ob_get_length();
 		@header("Content-Length: $size");
 		@ob_end_flush(); // All output buffers must be flushed here
@@ -22,72 +24,47 @@ class UbCallbackSendSignal implements UbCallbackAction {
 	}
 
 	function execute($userId, $object, $userbot, $message) {
-		$chatId = UbUtil::getChatId($userId, $object, $userbot, $message);
+		self::closeConnection();
+
+		$vk = new UbVkApi($userbot['token']);
+		$in = @$object['value'];// наш сигнал
+		$id = (int)@$object['from_id'];//from
+		#time = $vk->getTime(); // ServerTime
+		$time = time(); # время этого сервера
+		$tag = ($id<0)?'@club'.(-1 * $id):'@id'.$id; /* упонание @ */
+		$CanCtrl = (bool)(preg_match("#$id#ui",@$userbot['access']));
+		if ((int)@$object['from_id'] == (int)$userId)$CanCtrl = True;
+
+		$chatId = (int)UbVkApi::peer2ChatId((int)@$message['peer_id']);
 		if (!$chatId) {
 			UbUtil::echoError('no chat bind', UB_ERROR_NO_CHAT);
 			return;
 		}
 
-		self::closeConnection();
-
-		$vk = new UbVkApi($userbot['token']);
-		$in = $object['value']; // сам сигнал
-		$id = $object['from_id']; // от кого
-		$time = time(); # время этого сервера
-		#time = $vk->getTime(); // ServerTime
-		$tag = ($id<0)?'@club'.(-1 * $id):'@id'.$id; /* упонание @ */
-		$options = ['disable_mentions' => 1,'dont_parse_links' => 1];
-		$CanCtrl = (bool)(preg_match("#$id#ui",@$userbot['access']));
-		if ((int)@$object['from_id'] == (int)$userId)$CanCtrl = True;
-
-		if ($in == 'ping' || $in == 'пинг' || $in == 'пінг' || $in == 'пінґ' || $in == 'зштп') {
-				$pong= $time - (int)@$message['date'];
-				$msg = (isset($message['date']))?"PONG\nсигнал дошел за $pong сек.\n":"🤔 PONG\n";
-				$ts1 = microtime(true);
-				$msg.= "запрос к вк...\n";
-				$mess= $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']);
-				$te1 = microtime(true);
-				$pong= $te1 - $ts1;
-				$msg.= "ВК ответил за $pong сек.\n";
-				$te0 = microtime(true);
-				$pong= $te0 - TIME_START;
-				$r_t = (int)$mess['response']['items'][0]['id']; 
-				$msg.= "скрипт отработал (включая запрос) за $pong сек.\n";
-				$opt = ($r_t) ? ['reply_to'=>$r_t]:['disable_mentions'=>1];
-				$send = $vk->chatMessage($chatId, $msg, $opt);
-				return;
-		}
-
-		if ($in == 'ping?' || $in == 'пинг?' || $in == 'пінг?' || $in == 'пінґ?') {
-				$msg = "🤔 PONG";
+		/* ping служебный сигнал для проверки работоспособности бота */
+		if ($in == 'ping' || $in == 'пинг' || $in == 'пінг' || $in == 'пінґ') {
+				#$time = $vk->getTime(); /* ServerTime — текущее время сервера ВК */ sleep(0.3);
 				$mess= $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']);
 				$r_t = (int)$mess['response']['items'][0]['id']; 
-				$opt = ($r_t) ? ['reply_to'=>$r_t]:['disable_mentions'=>1];
-				$send = $vk->chatMessage($chatId, $msg, $opt);
+				$opt = ($r_t)?['reply_to'=>$r_t]:['disable_mentions'=>1];
+				$pong = "PONG!\n " . ($time - $message['date']) . " сек";
+				if ((int)@$object['from_id'] == (int)$userId && $r_t > 0) {
+				$edit = $vk->messagesEdit($message['peer_id'],$r_t,$pong);
+				if(!isset($edit['error'])) { return; }
+				}
+				$send = $vk->chatMessage($chatId, $pong, $opt);
 				return;
 		}
 
-		if ($in == 'обновить' || $in == 'оновити') {
-				$getChat = $vk->getChat($chatId);
-				$chat = $getChat["response"];
-				$upd = "UPDATE `userbot_bind` SET `title` = '$chat[title]', `id_duty` = '". UbDbUtil::intVal($userbot['id_user']) ."' WHERE `code` = '$object[chat]';";
-				UbDbUtil::query($upd);
-				return;
-		}
-
-		if ($in == 'info' || $in == 'інфо' || $in == 'інфа' || $in == 'инфо' || $in == 'инфа') {
-		$chat = UbDbUtil::selectOne('SELECT * FROM userbot_bind WHERE id_user = ' . UbDbUtil::intVal($userId) . ' AND code = ' . UbDbUtil::stringVal($object['chat']));
-		$getChat = $vk->getChat($chatId);
-		if(!$chat['title'] || $chat['id_duty'] != $userId) {
-				$chat['title'] = (isset($getChat["response"]["title"]))?(string)@$getChat["response"]["title"]:'';
-				$upd = "UPDATE `userbot_bind` SET `title` = '$chat[title]', `id_duty` = '". UbDbUtil::intVal($userbot['id_user']) ."' WHERE `code` = '$object[chat]';";
-				UbDbUtil::query($upd); }
-
-		$msg = "💬 Chat id: $chatId\n";
-		$msg.= "ℹ Iris id: $object[chat]\n";
-		$msg.= "🏷 Chat title: $chat[title]\n";
-		$vk->chatMessage($chatId, $msg, ['disable_mentions' => 1]);
-		return;
+		if(!$CanCtrl) {
+				$mess= $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']);
+				$r_t = (int)@$mess['response']['items'][0]['id']; 
+				$opt = ($r_t)?['reply_to'=>$r_t]:['disable_mentions'=>1];
+				//$pong = '!ПОГОДА НАХУЙ';#отличная идея (нет);
+				$pong = UB_ICON_WARN." у {$tag} нет доступа\n".
+				UB_ICON_INFO." Команды кроме пинга запрещены.";
+				$send = $vk->chatMessage($chatId, $pong, $opt);
+			return;
 		}
 
 		if ($in == '-смс') {
@@ -144,8 +121,7 @@ class UbCallbackSendSignal implements UbCallbackAction {
 				$min . ' минут' . self::number($min, 'а', 'ы', '') . ' тому назад';
 				} else {
 				$msg = UB_ICON_WARN . ' более 23 часов назад';
-				/*$vk->SelfMessage("$msg"); sleep(1); */
-				}
+				/*$vk->SelfMessage("$msg");*/ sleep(1); }
 				$vk->chatMessage($chatId, $msg);
 				return;
 		}
@@ -176,34 +152,22 @@ class UbCallbackSendSignal implements UbCallbackAction {
 		}
 
 		/* повтор текста */
-		if (preg_match('#(повтори|скажи|напиши)#ui',$message['text'],$t)) {
-				$txt=preg_replace('#.д\s(повтори|скажи|напиши|бомба)\s#ui','',$message['text'],1);
-				if(!$CanCtrl) { $txt=UB_ICON_INFO . " @id$id просит сказать:\n".self::substr($txt,256,0,'…'); }
-				elseif (preg_match('#лаб#ui',$txt)) {	$txt = '.с патоген';	}
-				if (preg_match('#-игра|-биоигра#ui',$txt)) {	$txt=UB_ICON_INFO . " @id$id хочет в скам";	}
-				$opt=['disable_mentions' => 1, 'dont_parse_links' => 1];
-				$vk->chatMessage($chatId, $txt, $opt); 
+		if (preg_match('#(повтори|скажи|напиши|патоген|пп|ген|кмд|ферма|лаб|связать|api)(.*)#ui',$message['text'],$t)) {
+				#$txt=($CanCtrl)?$t[2]: UB_ICON_INFO . " @id$id просит сказать:\n".self::substr($t[2],256,0,'…');
+				$opt=['disable_mentions' => 1, 'dont_parse_links' => 1]; $txt='';
+				if (preg_match('#(повтори|скажи|напиши|кмд)\n(.+)#ui',$message['text'],$t)) { $txt=$t[2]; }
+				if (preg_match('#лаб|патоген#ui',$message['text'])) {	$txt = '.с патоген';	}
+				if (preg_match('#(пп|ген|патоген) (.{2,42})#ui', $message['text'], $p)) {	$txt = "!с $p[0]";	}
+				if (preg_match('#-игра|-биоигра|передать#ui',$message['text'])){$txt=UB_ICON_INFO." @id$id хочет в скам";	}
+				if (preg_match('#api|дежурный#ui',$message['text'])){ $txt=UB_ICON_INFO." напиши нанять 666 @id$userId"; }
+				if (preg_match('#связать#ui',$message['text'])) {	$txt = '!связать';	}
+				/* список *preg* можно дополнять хоть вечность */
+				if ($txt!='')$vk->chatMessage($chatId,$txt,$opt); 
 				return;
 		}
 
-		/* инфа|вероятность. Если задан mtoken будет отправлена "бомба" */
-		if (preg_match('#(инфа|інфа|вероятность)(.+)#ui',$message['text'],$t)) {
-				$txt=self::substr($t[2],3007, $start=0, $mn = '…'); // ібо нєхуй
-				$txt= UB_ICON_INFO . " @id$id верноятность, что $txt ". mt_rand(0,101) . '%';
-				$opt=['disable_mentions' => 1, 'dont_parse_links' => 1];
-				$vk->chatMessage($chatId, $txt, $opt); 
-				return;
-		}
-
-		if ($in == 'ферма') {
-				$txt = '💬 Чтобы добывать ирис-коины перейдите в пост https://m.vk.com/wall-174105461_6713149
-				и введите команду "ферма"';
-				$vk->chatMessage($chatId, $txt);
-				return;
-		}
-
-		$vk->chatMessage($chatId, 'Мне прислали сигнал. От пользователя ' . $tag, ['disable_mentions' => 1]);
-	}
+		$vk->chatMessage($chatId,'Мне прислали сигнал. От пользователя '.$tag,['disable_mentions'=>1]);
+    }
 
     static function for_name($text) {
         return trim(preg_replace('#[^\pL0-9\=\?\!\@\\\%/\#\$^\*\(\)\-_\+ ,\.:;]+#ui', '', $text));
