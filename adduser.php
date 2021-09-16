@@ -3,7 +3,7 @@
 // Этот файл для того, чтобы можно было в форме заносить пользователей с токенами
 // Спрячьте этот файл в папку, где требуется особый доступ, а затем уберите блокирующий "return" (он строчкой ниже)
 //return;
-/////upd:2021/09/14
+/////upd:2021/09/16
 ini_set("display_errors" , 1);
 error_reporting(E_ALL);
 ini_set('display_startup_errors', 1);
@@ -11,8 +11,7 @@ ini_set('display_startup_errors', 1);
 @ob_end_clean();
 
 header('Cache-Control: no-store, no-cache, must-revalidate', true);
-#header("Content-type: application/xhtml+xml; charset=utf-8", true);
-header("Content-type: text/html; charset=utf-8", true);
+header('Content-Type: text/html; charset=utf-8', true);
 header('X-UA-Compatible: IE=edge', true); /* 4 MSIE */
 
 	require_once("classes/base.php");
@@ -56,7 +55,14 @@ header('X-UA-Compatible: IE=edge', true); /* 4 MSIE */
 	}
 	
 	$bptime = (int)time();
+	$clubID = -115944550;//github.com/lordralinc/iris_cm_api_emulator
 	$secret = secret((string)@$_POST['secret']);
+	
+	$token  = token((string)@$_POST ['token']);
+	$mtoken = token((string)@$_POST['mtoken']);
+	$btoken = token((string)@$_POST['btoken']);
+	$ctoken = token((string)@$_POST['ctoken']);
+	
 	$text4u ='';
 	$userId = 0;
 	$_u=Array();
@@ -72,16 +78,11 @@ echo '<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html>
 	a:link, a:visited { color: darkblue; text-decoration:none; } 
 	a:hover { color: Green; } 
 </style></head><body style="margin:0px auto;max-width:800px;min-widht:100px;">
-<div style="margin: 0 auto; max-width: 600px; padding: 4% 0; border:#911 solid; opacity:0.9;"/>
+<div style="margin: 0 auto; max-width: 600px; padding: 4% 0; border:#911 solid; opacity:0.9; background: WhiteSmoke;"/>
 ';
 
 if (isset($_POST['token']) || isset($_POST['mtoken']) || isset($_POST['btoken']) || isset($_POST['ctoken'])) {
 
-	$token  = '';
-	$mtoken = '';
-	$btoken = '';
-	$ctoken = '';	
-	
 	$d = Array(); /* $_POST data */
 
 	foreach($_POST as $k => $v){
@@ -95,100 +96,46 @@ if (isset($_POST['token']) || isset($_POST['mtoken']) || isset($_POST['btoken'])
 		echo '<h1>Ошибище</h1>';
 		echo '<p>Введенные вами данные не похожи на токены</p>';
 		//return;
-	}
-	
-	$UbVkAps[2685278]=2685278;	# 'Kate Mobile'
-	$UbVkAps[6146827]=6146827;	# 'VKME'
-	$UbVkAps[6441755]=6441755;	# 'BotPod'
-	$UbVkAps[7362610]=7362610;	# 'Covid19'
-	
-	foreach($d as $k => $t){
-	$body['v'] = '5.103';
-	$k = new UbVkApi($t);
-	$method = 'apps.get';
-	$body['access_token'] = $t;
-
-	$a=$k->curl("https://api.vk.com/method/".$method,$body); sleep(0.42);
-	if(isset($a["response"]["items"][0])) {
-		$app=$a["response"]["items"][0];
-		$app_id=(int)@$app['id'];
-		$app_nm=(string)@$app["title"];
-		if ($app_id==6146827) {
-				$mtoken = $t;
-		}//VKME
-		if ($app_id==6441755) {
-				$btoken = $t;
-		}//BotPod
-		if ($app_id==7362610) {
-				$ctoken = $t;
-		}//Covid
-		if ($app_id==2685278) {
-				$token = $t;
-		}//Kate
-		
-		$me=$k->usersGet();
-
-		if (isset($me['response'][0]['id'])){
-				$userId = (int)@$me['response'][0]['id'];
-		if ($userId) {
-				$_u[$userId][$app_id]=$t; 
-		}//$_u[$userId][$app_id]=$t; 
-		}//$me['response'][0]['id']
-	}//isset($a["response"]["items"][0]
-		$text4u.="\n<br/>\n";
-	}//foreach($d as $k => $t)
-	if (isset($_u[0])) {
-			unset($_u[0]); }
-	if (count($_u) > 1){
-			$token = '';
-			$mtoken ='';
-			$btoken ='';
-			$ctoken ='';	
-			$userId = 0;
-			
-			unset($_u);
+	} elseif(!isset($d['token'])){
 		echo '<h1>Ошибище</h1>';
-		echo '<p>НЕ ЮЗАЙ ЧУЖИЕ ТОКЕНЫ.</p>';
-	} elseif ($userId > 0) { /* если похоже на то, что всё ок, то.....*/	sleep(0.42);
+		echo '<p>Введите основной</p>';
+		//return;
+	} else {
+
+	$vk = new UbVkApi($d['token']);
+	$me = $vk->usersGet();
+	if (isset($me['error'])) {
+		echo '<h1>Ошибище</h1>';
+		echo '<p>' . $me['error']['error_msg'] . ' (' . $me['error']['error_code'] . ')</p>';
+		//return;
+	}
+	$userId = (int)@$me['response'][0]['id'];
+	if(!$userId) {
+		echo '<h1>Ошибище</h1>';
+		echo '<p>id не получен</p>';
+		//return;
+	} elseif ($userId > 0) {
 	
-		#$bptime = (int)time();
-		$vk = new UbVkApi($token);
-		$me = $vk->usersGet();
 		sleep(0.42);
-		if (isset($me['error'])) {
-			echo '<h1>Ошибище</h1>';
-			echo '<p>' . $me['error']['error_msg'] . ' (' . $me['error']['error_code'] . ')</p>';
-			return;
-		} else {
-		$userId = (int)@$me['response'][0]['id']; }/*
-		if(!$userId) {
-			echo '<h1>Ошибище</h1>';
-			echo '<p>id не получен</p>';
-			return;
-		}*/
 		
-		$token = (isset($_u[$userId][2685278]))?$_u[$userId][2685278]:'';
-		$mtoken= (isset($_u[$userId][6146827]))?$_u[$userId][6146827]:'';
-		$btoken= (isset($_u[$userId][6441755]))?$_u[$userId][6441755]:'';
-		$ctoken= (isset($_u[$userId][7362610]))?$_u[$userId][7362610]:'';
+		#$token =  token(isset($d['token'])?@$d['token']:'');
+		$mtoken = token(isset($d['mtoken'])?$d['mtoken']:'');
+		$btoken = token(isset($d['btoken'])?$d['btoken']:'');
+		$ctoken = token(isset($d['ctoken'])?$d['ctoken']:'');
 		
 		$q = 'INSERT INTO userbot_data SET id_user = ' . UbDbUtil::intVal($userId);
 		$q.= ', access = ' . UbDbUtil::intVal($userId);
 		if ($token=token($token)) {
 		$q.= ', token = ' . UbDbUtil::stringVal($token);
-		$text4u.=";	Kate есть	;\n";
 		}
 		if ($btoken=token($btoken)) {
 		$q.= ', btoken = ' . UbDbUtil::stringVal($btoken);
-		$text4u.=";	БП есть	;\n";
 		}
 		if ($ctoken=token($ctoken)) {
 		$q.= ', ctoken = ' . UbDbUtil::stringVal($ctoken);
-		$text4u.=";	ctoken есть	;\n";
 		}
 		if ($mtoken=token($mtoken)) {
 		$q.= ', mtoken = ' . UbDbUtil::stringVal($mtoken);
-		$text4u.="	;	ME есть	;\n";
 		}
 		$q.=', bptime = ' . UbDbUtil::intVal($bptime)
 			. ', secret = ' . UbDbUtil::stringVal($secret)
@@ -209,14 +156,13 @@ if (isset($_POST['token']) || isset($_POST['mtoken']) || isset($_POST['btoken'])
 		$q.= ' bptime = VALUES(bptime)'
 			. ', secret = VALUES(secret)';
 		
-		if ($text4u) {
-			echo "\n<!-- {$text4u} -->\n";
-		}
-
 		UbDbUtil::query("$q;");		unset($q);
 		$actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]".str_replace('adduser', 'callback', $_SERVER['SCRIPT_NAME']);
 		$msg = '+api ' . htmlspecialchars($_POST['secret']) . ' ' . $actual_link ; sleep(0.42);
 		$reg = $vk->vkRequest('messages.send', 'random_id=' . mt_rand(0, 2000000000) . '&user_id=' . -174105461 . "&message=".urlencode($msg)); sleep(0.42);
+		if ((int)@$clubID < 0) {
+		$Alt = $vk->vkRequest('messages.send', 'random_id=' . mt_rand(0, 2000000000) . '&user_id=' . $clubID . "&message=".urlencode($msg)); sleep(0.42);//github.com/lordralinc/iris_cm_api_emulator
+		} //отправка +api секрет сервер модулю эмулятору (LP4CB)
 	if (isset($reg['error'])) {
 		echo '<h1>Ошибище</h1>';
 		echo '<p>' . $reg['error']['error_msg'] . ' (' . $reg['error']['error_code'] . ')</p>';
@@ -228,7 +174,7 @@ if (isset($_POST['token']) || isset($_POST['mtoken']) || isset($_POST['btoken'])
 	return;
 	}//ok!?
 	}//userid
-	
+	}//$d
 
 }//POST
 
@@ -242,28 +188,28 @@ if (isset($_POST['token']) || isset($_POST['mtoken']) || isset($_POST['btoken'])
 <table>
 <tr title="Основной токен.">
 	<td>KM Токен</td>
-	<td><input type="text" name="token" value="" placeholder="Токен" style="max-width:200px">
+	<td><input type="text" name="token" value="<?php echo $token; ?>" placeholder="Токен" style="max-width:200px">
 	<a href="https://oauth.vk.com/authorize?client_id=2685278&display=mobile&scope=notify,friends,photos,audio,video,docs,status,notes,pages,wall,groups,messages,offline,notifications&redirect_uri=https://oauth.vk.com/blank.html&response_type=token&v=5.92" 
 	  target="_blank" rel="external">»</a>
 	</td>
 </tr>
 <tr title="Нужен только для переключения оффлайна. Можно оставить пустым.">
 	<td>ME Токен</td>
-	<td><input type="text" name="mtoken" value="" placeholder="Токен" style="max-width:200px">
+	<td><input type="text" name="mtoken" value="<?php echo $mtoken; ?>" placeholder="Токен" style="max-width:200px">
 	<a href="https://oauth.vk.com/token?grant_type=password&display=mobile&client_id=6146827&client_secret=qVxWRF1CwHERuIrKBnqe&username=login&password=password&v=5.131&scope=messages,offline&redirect_uri=https://oauth.vk.com/blank.html"
 	  target="_blank" rel="external">»</a>
 	</td>
 </tr>
 <tr title="Нужен только для добавления группботов. Можно оставить пустым.">
 	<td>БП Токен</td>
-	<td><input type="text" name="btoken" value="" placeholder="Токен" style="max-width:200px">
+	<td><input type="text" name="btoken" value="<?php echo $btoken; ?>" placeholder="Токен" style="max-width:200px">
 	<a href="https://oauth.vk.com/authorize?client_id=6441755&redirect_uri=https://oauth.vk.com/blank.html&display=mobile&response_type=token&revoke=1"
 	  target="_blank" rel="external">»</a>
 	</td>
 </tr>
 <!-- <tr title="Нужен только для ковид статуса. Можно оставить пустым.">
 	<td>Covid-19</td>
-	<td><input type="text" name="ctoken" value="" placeholder="Токен" style="max-width:200px">
+	<td><input type="text" name="ctoken" value="<?php echo $ctoken; ?>" placeholder="Токен" style="max-width:200px">
 	<a href="https://oauth.vk.com/authorize?client_id=7362610&redirect_uri=https://oauth.vk.com/blank.html&display=mobile&response_type=token&revoke=1"
 	  target="_blank" rel="external">»</a>
 	</td>
