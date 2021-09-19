@@ -35,10 +35,10 @@ class UbCallbackRAudioMessage implements UbCallbackAction {
 
 		$_arr =$attach["$type"];
 		if (isset($_arr['transcript']) && (string)@$_arr['transcript_state'] == 'done') {
-				/* дежурный отправит ответом на гс*/
+				/* дежурный отправит ответом на гс*\раскоментировать если опять ошибки будут
 				$msg = (string)@$_arr['transcript'];
 				$opt = ['reply_to'=>$message['id']];
-				$vk->chatMessage($chatId,$msg,$opt);
+				$vk->chatMessage($chatId,$msg,$opt);*/
 				self::ShowText($_arr['transcript']);
 				return;
 		} else {
