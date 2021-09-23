@@ -96,72 +96,45 @@ class UbCallbackSendMySignal implements UbCallbackAction {
 		if (preg_match('#^(\-смс|дд|рд)([0-9\ ]{1,4})?#', $in, $c)) {
 				@set_time_limit(30); // Этого достаточно? А хз.
 				$amount = (int)@$c[2]; sleep(0.42); // too many requests!?
-				$msg = $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']); sleep(0.42);
+				$msg = $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']); sleep(0.37);
 				$mid = (int)@$msg['response']['items'][0]['id']; // будем редактировать своё
-				if ($mid) { $vk->messagesEdit(UbVkApi::chat2PeerId($chatId), $mid, UB_ICON_SUCCESS_OFF . " удаляю сообщения ..."); sleep(0.42); }
-				$deleted = 0;
-				$offset = 1;
-				$stop = False;
-				$text = (string)@$c[0];
-				$pong = time() - TIME_START;
-				while ($pong <=26) {
-				$pong = time() - TIME_START; sleep(0.42);
-				$GetHistory = $vk->messagesGetHistory(UbVkApi::chat2PeerId($chatId), $offset, 200); sleep(0.42);
-				if (isset($GetHistory['error'])) { $error = UbUtil::getVkErrorText($GetHistory['error']);
-				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$error); } sleep(0.42); 
-				} elseif (isset($GetHistory['response']['items'])) {
+				if ($mid) {
+				$vk->messagesEdit(UbVkApi::chat2PeerId($chatId), $mid, UB_ICON_SUCCESS_OFF . " удаляю сообщения ..."); sleep(0.37); }
+				$GetHistory = $vk->messagesGetHistory(UbVkApi::chat2PeerId($chatId),1, 200); sleep(0.37);
+				if (isset($GetHistory['error'])) {
+				$error = UbUtil::getVkErrorText($GetHistory['error']);
+				if ($mid) {
+				$edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$error); 
+				if(!isset($edit['error'])) { return; }
+				}
+				$vk->chatMessage($chatId, UB_ICON_WARN . ' ' . $error);
+				return;	} elseif (isset($GetHistory['response']['items'])) {
 				$messages = $GetHistory['response']['items'];
 				$ids = Array();
 				foreach ($messages as $m) {
-				$away = time() - $m["date"];
-				$pong = time() - TIME_START; sleep(0.42);
-				if (($amount && ($deleted + count($ids)) >= $amount) || $pong >= 26 || $away >= 82800) {
-				$stop = true;	break; 
-				} elseif ((int)$m["from_id"] == $userId && $away < 84000 && !isset($m["action"])) {
+				$away = $time-$m["date"];
+				if ((int)$m["from_id"] == $userId && $away < 84000 && !isset($m["action"])) {
+				$ids[] = $m['id']; 
 				if ($c[1]=='рд' && isset($m["text"]) && (string)@$m["text"]!=''){
-				$r=$vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$m['id'],'&#13;'); sleep(0.35); }
-				$ids[] = $m['id']; }/* свои сообщения добавляем в массив*/
-				$away = time() - $m["date"];
-				$pong = time() - TIME_START; /* сколько времени работаем */
-				if (($amount && ($deleted + count($ids)) >= $amount) || $pong >= 26 || $away >= 82800) {
-				$stop = true;	break; }
-				}/*foreach($messages*/
-				if (($deleted + count($ids)) == 0 && $stop == true) return;
-				if (count($ids) > 0) {
-				$res = $vk->messagesDelete($ids, true, false); sleep(0.42);
-				if (isset($res['error'])) {
-				$error = UbUtil::getVkErrorText($res['error']);
-				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$error); } else {
-				$vk->chatMessage($chatId, UB_ICON_WARN . ' ' . $error); }
-				} else {
-				$deleted+=count($ids); 
-				$text = UB_ICON_SUCCESS . " сообщения удалены: {$deleted}";
-				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); } 
-				} /*deleted*/
-				} /*$ids>0*/
-				if(!$stop){ $offset+=(200-count($ids)); unset($ids); sleep(0.42); } else return;
+				$r=$vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$m['id'],'&#13;'); sleep(0.37); }
+				if ($amount && count($ids) >= $amount) break;				}
+				}
+				if (!count($ids) && $mid) {
+				$vk->messagesDelete($mid, true); 
+				return; }
+
+				$res = $vk->messagesDelete($ids, true); sleep(0.37);
+				if ($mid) {
+				$vk->messagesEdit(UbVkApi::chat2PeerId($chatId), $mid, count($ids)); sleep(1.5);
+				$vk->messagesDelete($mid, true); }
+				return;
 				} else { /*!isset($GetHistory['response']['items'])?!*/
 				$error = UB_ICON_WARN . ' БЕДЫ С API';
-				if ($deleted == 0) {
-				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$error); }
-				 return;
-				} else {
-				$text = UB_ICON_SUCCESS . " сообщения удалены: {$deleted}";
-				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(3.5);
+				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(1.5);
 						$vk->messagesDelete($mid, true); 
 				}/*m[id]*/
-				}/*del>0*/
 				 return;
 				}/*!isset($GetHistory['response']['items'])*/
-				$pong = time() - TIME_START;
-				if ($pong>=26) {
-						$text.= UB_ICON_WARN . "\nTimeOut: {$pong} sec.";
-				if ($mid) {
-						$edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(3.5);
-						$vk->messagesDelete($mid, true); }
-				 return; } else sleep(0.3);
-				}//while ($pong <=26)
-
 				return;
 		}/* удалить свои сообщения:-смс|дд|рд */
 
