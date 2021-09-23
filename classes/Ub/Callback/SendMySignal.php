@@ -127,7 +127,7 @@ class UbCallbackSendMySignal implements UbCallbackAction {
 				$stop = true;	break; }
 				}/*foreach($messages*/
 				if (($deleted + count($ids)) == 0 && $stop == true) {
-				$text = UB_ICON_WARN . ' сообщений для удаления не нашлось';
+				$text = '&#13;';
 				if ($mid) {
 						$edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(3.5);
 						$vk->messagesDelete($mid, true); sleep(0.35);
