@@ -126,14 +126,7 @@ class UbCallbackSendMySignal implements UbCallbackAction {
 				if (($amount && ($deleted + count($ids)) >= $amount) || $pong >= 26 || $away >= 82800) {
 				$stop = true;	break; }
 				}/*foreach($messages*/
-				if (($deleted + count($ids)) == 0 && $stop == true) {
-				$text = '&#13;';
-				if ($mid) {
-						$edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(3.5);
-						$vk->messagesDelete($mid, true); sleep(0.35);
-						 
-						return; }
-				$vk->chatMessage($chatId,$text);  return; }//0 msgs deleted
+				if (($deleted + count($ids)) == 0 && $stop == true) return;
 				if (count($ids) > 0) {
 				$res = $vk->messagesDelete($ids, true, false); sleep(0.42);
 				if (isset($res['error'])) {
