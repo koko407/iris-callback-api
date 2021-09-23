@@ -161,10 +161,15 @@ class UbVkApi {
 		return $this->vkRequest('messages.getConversations', ['count' => intval($amount), 'filter' => $filter]);
 	}
 
-	public function messagesGetHistory($peerId, $offset, $count, $options = []) {
-		if (is_array($options))
-			$options = http_build_query($options);
-		return $this->vkRequest('messages.getHistory', 'peer_id=' . $peerId . '&offset=' . $offset . '&count=' . $count . '&' . $options);
+	public function messagesGetHistory($peerId, $offset = 0, $count = 10, $options = []) {
+		$add = '';
+		if ($options && is_array($options) && count($options) > 0)
+			foreach ($options as $k => $val)
+				$add .= '&' . $k . '=' . $val;
+		if(!isset($options['start_message_id'])){
+				$add .= '&start_message_id=-1';	}
+		$res = $this->vkRequest('messages.getHistory', 'random_id=' . mt_rand(0, 2000000000) . '&peer_id=' . $peerId . '&offset=' . $offset . '&count=' . $count . $add);
+		return $res;
 	}
 
 	public function messagesGetInviteLink($peerId) {
@@ -285,9 +290,11 @@ class UbVkApi {
 		curl_setopt($cUrl, CURLOPT_SSL_VERIFYHOST, 0);
 #		curl_setopt($cUrl,CURLOPT_FOLLOWLOCATION, true);
 
+		if ($this->proxy) {
 		/* тут можно задать прокси, тип */
 #		curl_setopt($cUrl,CURLOPT_PROXY, "тут_прокси_и_:порт"); 
 #		curl_setopt($cUrl,CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5); 
+		}
 
 		if ($data) {
 			curl_setopt($cUrl, CURLOPT_POST, 1);
