@@ -1,6 +1,6 @@
 <?php
-//upd:2021/09/14
-define('VK_API_VERSION', '5.92');
+//upd:2021/09/23
+define('VK_API_VERSION', '5.131');
 
 define('VK_BOT_ERROR_UNKNOWN', 1);
 define('VK_BOT_ERROR_APP_IS_OFF', 2);
@@ -102,8 +102,9 @@ class UbVkApi {
 	function messagesSend($peerId, $message, $options = []) {
 		$add = '';
 		if ($options)
-			foreach ($options as $k => $val)
+			foreach ($options as $k => $val) {
 				$add .= '&' . urlencode($k) . '=' . urlencode($val);
+			}
 
 		$res = $this->vkRequest('messages.send', 'random_id=' . mt_rand(0, 2000000000) . '&peer_id=' . urlencode($peerId) . "&message=".urlencode($message) . $add);
 		return $res;
