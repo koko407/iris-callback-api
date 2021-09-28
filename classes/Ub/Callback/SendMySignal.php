@@ -92,8 +92,7 @@ class UbCallbackSendMySignal implements UbCallbackAction {
 				return;
 		}
 
-		/* удалить свои сообщения:-смс|дд|рд( количество)? *\\
-		/* оно неработает. хз шо ему нетак. тупо нехочет, зараза *
+		/* удалить свои сообщения:-смс|дд|рд( количество)? */
 		if (preg_match('#^(\-смс|дд|рд)([0-9\ ]{1,4})?#', $in, $c)) {
 				$amount = (int)@$c[2]; sleep(0.4); // too many requests!?
 				$msg = $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']); sleep(0.4);
@@ -128,14 +127,32 @@ class UbCallbackSendMySignal implements UbCallbackAction {
 				$vk->messagesEdit(UbVkApi::chat2PeerId($chatId), $mid, count($ids)); sleep(0.4);
 				$vk->messagesDelete($mid, true); }
 				return;
-				} else { $error = UB_ICON_WARN . ' БЕДЫ С API';
-				if ($mid) { $edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(1.5);
+				} else {
+				$error = UB_ICON_WARN . " getHistory не содержит ['response']['items']";
+				if(!isset($GetHistory['response'])) {
+						$error = UB_ICON_WARN . " getHistory не содержит ['response']";				}
+				if ($mid) {
+						$edit = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId),$mid,$text); sleep(1.5);
 						$vk->messagesDelete($mid, true); 
 				}
 				 return;
-				}/*!isset($GetHistory['response']['items'])*
+				}/*!isset($GetHistory['response']['items'])*/
 				return;
-		}/* удалить свои сообщения:-смс|дд|рд */#хз когда
+		}/* удалить свои сообщения:-смс|дд|рд */
+
+		if ($in == 'смс' || $in == 'смсинфо' ||$in == 'смс инфо') {
+				$msg = $vk->messagesGetByConversationMessageId(UbVkApi::chat2PeerId($chatId), $object['conversation_message_id']); sleep(0.4);
+				$mid = (int)@$msg['response']['items'][0]['id'];
+
+				$msg = json_encode($msg['response']['items'][0], JSON_UNESCAPED_UNICODE);
+
+				if ($msg && $mid) {
+				$r = $vk->messagesEdit(UbVkApi::chat2PeerId($chatId), $mid, $msg); 
+				if(!isset($r['error'])) { return; }
+				$vk->chatMessage($chatId, $msg, ['disable_mentions' => 1]);
+				return; }
+				return;
+		}//смсинфо;
 
 		/* установка коронавирусного статуса (смайлик возле имени) */
 		if (preg_match('#setCovidStatus ([0-9]{1,3})#ui',$message['text'],$s)) {
