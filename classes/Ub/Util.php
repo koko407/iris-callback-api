@@ -41,16 +41,17 @@ class UbUtil {
 		return json_encode(self::buildErrorResponse('error', $message, $code), JSON_UNESCAPED_UNICODE);
 	}
 
-	public static function getVkErrorText($error) {
+	public static function getVkErrorText($error,$u_ID=0) {
 		$errorCode = $error['error_code'];
 		$eMessage = $error['error_msg'];
 		$errorMessage = null;
+		$userID = (int)$u_ID;
 		switch ($errorCode) {
 			case VK_BOT_ERROR_ACCESS_DENIED :
 				if (strpos($eMessage, 'already in') !== false)
 					$errorMessage = 'Пользователь уже в беседе';
 				else if (strpos($eMessage, 'can\'t add this') !== false)
-					$errorMessage = 'Не могу добавить. Скорее всего пользователь не в моих друзьях.';
+					$errorMessage = 'Не могу добавить. Скорее всего '.($userID?"[id{$userID}|пользователь]":'пользователь').' не в моих друзьях.';
 				else if (strpos($eMessage, 'user already left') !== false)
 					$errorMessage = 'Не могу добавить. Пользователь сам вышел.';
 				else
@@ -87,21 +88,22 @@ class UbUtil {
 			$message = $object;
 		require_once(CLASSES_PATH . "Ub/BindManager.php");
 		$bindManager = new UbBindManager();
+		$userChatId = 0;
 		$chat = $bindManager->getByUserChat($userId, $object['chat']);
 		if ($chat) {
-			return $chat['id_chat'];
+				$userChatId = $chat['id_chat'];
 		}
 		$vk = new UbVkApi($userbot['token']);
 		$result = $vk->messagesSearch($message['text'], $peerId = null, $count = 10);
-		if (isset($result['error'])) {
-			return UbUtil::errorVkResponse($result['error']);
-		}
-		$userChatId = 0;
+		if (isset($result['response']['items'])) {
 				foreach ($result['response']['items'] as $item) {
 					if (self::isMessagesEqual($item, $message)) {
 						$userChatId = UbVkApi::peer2ChatId($item['peer_id']);
 					}
 				}
+		} elseif (isset($result['error'])) {
+			return UbUtil::errorVkResponse($result['error']);
+		}
 
 		if ($userChatId) {
 			$t = ['id_user' => $userId, 'code' => $object['chat'], 'id_chat' => $userChatId];
