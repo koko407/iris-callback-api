@@ -3,7 +3,7 @@
 // Этот файл для того, чтобы можно было в форме заносить пользователей с токенами
 // Спрячьте этот файл в папку, где требуется особый доступ, а затем уберите блокирующий "return" (он строчкой ниже)
 //return;
-/////upd:2021/09/16
+/////upd:2022/06/07
 ini_set("display_errors" , 1);
 error_reporting(E_ALL);
 ini_set('display_startup_errors', 1);
@@ -42,7 +42,7 @@ header('X-UA-Compatible: IE=edge', true); /* 4 MSIE */
 
 	function token($data = ''){
 	$token = false;
-	if (preg_match('#([a-z0-9]{85})#ui', $data, $t)) {
+	if (preg_match('#([a-z0-9_\-\.]{85,198})#ui', $data, $t)) {
 	$token = (string)$t[1]; }
 	return $token ? $token:'';
 	}
